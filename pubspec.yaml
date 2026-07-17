@@ -1,0 +1,49 @@
+name: getbible_life
+description: A private, local-first native Flutter Bible reader powered by GetBible API v2.
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.12.2 <4.0.0'
+  flutter: '>=3.44.6'
+
+dependencies:
+  drift:
+    git:
+      url: https://github.com/simolus3/drift.git
+      ref: 0936361b756809ccac7021c4663d1703885edc90
+      path: drift
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  go_router:
+    git:
+      url: https://github.com/flutter/packages.git
+      ref: 40733ebc9869e44b626583abd11c549bff37d966
+      path: packages/go_router
+  http: 1.6.0
+  intl: 0.20.2
+  path_provider: 2.1.6
+  provider: 6.1.5+1
+  url_launcher: 6.3.2
+  uuid: 4.5.3
+
+dependency_overrides:
+  sqlite3:
+    git:
+      url: https://github.com/simolus3/sqlite3.dart.git
+      ref: 660f9d4a766d3c8914884650fb27f21e08001130
+      path: sqlite3
+
+dev_dependencies:
+  flutter_lints: 6.0.0
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/locales/
