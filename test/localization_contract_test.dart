@@ -18,7 +18,7 @@ void main() {
       final List<Object?> messages = jsonDecode(file.readAsStringSync()) as List<Object?>;
       expect(messages.every((Object? value) => value is String), isTrue);
       messageCount ??= messages.length;
-      expect(messages, hasLength(messageCount!), reason: 'Locale $locale is out of sync');
+      expect(messages, hasLength(messageCount), reason: 'Locale $locale is out of sync');
     }
     expect(messageCount, greaterThan(0));
   });
