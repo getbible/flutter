@@ -2,6 +2,8 @@
 
 Cross-platform Flutter implementation of [getBible.Life](https://app.getbible.life), maintained at [`getbible/flutter`](https://github.com/getbible/flutter). It targets Android, iOS, web, Windows, macOS, and Linux from one native Flutter codebase. Scripture comes from GetBible API v2 and reader data remains on the device. The reader does not use a WebView.
 
+The React application at [`getbible/app.getbible.life`](https://github.com/getbible/app.getbible.life) and its live deployment are the product source of truth. Flutter must reproduce the same reader behavior and data contracts natively. See the [web-to-Flutter parity contract](docs/WEB_FLUTTER_PARITY.md).
+
 > Development status: the repository contains the native foundation, typed domain model, API client, SQLite persistence, cache verification, reader shell, search/backup/Markdown services, tests, and CI. Store publication still requires complete feature-parity verification, physical-device QA, signing identities, and store-console access. See [feature parity](docs/FEATURE_PARITY.md).
 
 ## Supported targets
@@ -101,6 +103,10 @@ See [architecture](docs/ARCHITECTURE.md) and [data contracts](docs/DATA_AND_BACK
 
 Notes, markings, preferences, cached Scripture, and reading position are stored locally. The app has no accounts, advertising, analytics, or tracking. Network traffic is limited to resources required for Scripture and daily-passage retrieval. See [privacy policy draft](docs/PRIVACY.md).
 
+## Branding
+
+All platform launchers, favicons, splash artwork, window icons, and in-app identity use the approved GetBible artwork in `assets/branding/`. CI validates a committed checksum manifest so generated Flutter template icons cannot silently return. The source artwork must be replaced only with explicitly approved GetBible assets.
+
 ## Documentation index
 
 - [Agent operating guide](AGENTS.md)
@@ -108,6 +114,8 @@ Notes, markings, preferences, cached Scripture, and reading position are stored 
 - [API and cache workflow](docs/API_AND_CACHE.md)
 - [Data and backup compatibility](docs/DATA_AND_BACKUPS.md)
 - [Feature-parity ledger](docs/FEATURE_PARITY.md)
+- [Web-to-Flutter parity contract](docs/WEB_FLUTTER_PARITY.md)
+- [Brand assets](docs/BRANDING.md)
 - [Testing and QA](docs/TESTING.md)
 - [Deployment and distribution](docs/DEPLOYMENT.md)
 - [Release checklist](docs/RELEASE_CHECKLIST.md)

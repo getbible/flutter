@@ -18,6 +18,8 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
+      - name: Verify approved GetBible brand assets
+        run: sha256sum -c assets/branding/BRAND_ASSETS.sha256
       - name: Validate Dart formatting and parsing
         run: dart format --output=none .
       - run: flutter analyze

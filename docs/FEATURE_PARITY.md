@@ -19,7 +19,8 @@ Status meanings: **Implemented** exists in source; **Partial** needs remaining U
 | Search modes and isolate execution | Partial | Corpus search service exists; paging/highlight/search screen remain |
 | Website-compatible backups | Implemented core | Model validation/merge exists; native file picker/share UI remains |
 | Markdown generation | Implemented core | Native copy/share/save UI remains |
-| Complete website localization | Partial | English fallback exists; convert and verify all website locale files |
+| Complete website localization | Partial | All 69 compact website locale packs are mirrored and contract-tested; Flutter runtime message loading and full widget adoption remain |
+| Approved GetBible branding | Implemented | Supplied artwork is installed for Android, iOS, macOS, Windows, Linux, web, splash, and the reader header; CI verifies exact hashes |
 | Accessibility | Partial | Safe area, semantics, scaling foundations; full focus/screen-reader audit remains |
 | CI | Implemented | Format, analyze, tests, Android debug artifact |
 | Signed store distribution | External | Requires Apple/Google credentials and store review |

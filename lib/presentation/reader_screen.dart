@@ -14,7 +14,26 @@ class ReaderScreen extends StatelessWidget {
     final AppState state = context.watch<AppState>();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('getBible.live'),
+        titleSpacing: 12,
+        title: Semantics(
+          label: 'getBible.live — The words of eternal life',
+          image: true,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.white.withAlpha(238),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+              child: Image.asset(
+                'assets/branding/getbible_wordmark.png',
+                height: 30,
+                fit: BoxFit.contain,
+                alignment: AlignmentDirectional.centerStart,
+              ),
+            ),
+          ),
+        ),
         actions: <Widget>[
           IconButton(tooltip: 'Reading settings', icon: const Icon(Icons.text_fields), onPressed: () => _settings(context, state)),
         ],

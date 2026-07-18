@@ -30,4 +30,10 @@ Required suites cover serialization, API parsing, passage links, expiry/hash inv
 9. Switch to RTL Scripture and exercise selection/navigation.
 10. Test phone/tablet, portrait/landscape, dark/light, 200% text, keyboard, and screen reader.
 
+## Side-by-side parity review
+
+Before a release, run the Flutter app beside `https://app.getbible.life/` using equivalent viewport sizes and the same passage. Compare navigation, daily Scripture, typography/layout, themes, toolbar anchoring, marking and note behavior, search results, Markdown, translation metadata, offline indicators, localization, RTL, restoration, and destructive confirmations. Record every material difference in `FEATURE_PARITY.md`; do not normalize a missing Flutter workflow as a platform difference.
+
+Visually inspect the launcher, splash, task-switcher/window icon, browser favicon/PWA icon, and in-app wordmark on light and dark system surfaces. `sha256sum -c assets/branding/BRAND_ASSETS.sha256` must pass before testing release artifacts.
+
 Do not declare physical-device behavior verified from widget tests alone.

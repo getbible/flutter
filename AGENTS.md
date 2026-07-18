@@ -46,6 +46,12 @@ Discover translations/books/chapters dynamically. Use SHA endpoints for chapter 
 
 Scripture is the visual priority. Respect safe areas, RTL, large text, semantics, keyboard focus, reduced motion, and 48dp touch targets. Notes are edited inline below verses. Contextual annotation controls belong near the verse/selection, not permanently at the bottom.
 
+## Product parity and brand assets
+
+The current `getbible/app.getbible.life` default branch and live application are the product source of truth. Treat `docs/WEB_FLUTTER_PARITY.md` as a living, test-backed contract. A web feature is not complete in Flutter until its native equivalent, persistence rules, localization, accessibility behavior, and tests exist. Update both ledgers whenever either implementation changes.
+
+Only the approved GetBible artwork under `assets/branding/` may be used for launchers, favicons, splash screens, window icons, store artwork, or in-app product branding. Never restore Flutter template icons or substitute framework/vendor icons for the application identity. Material/Cupertino icons remain appropriate for ordinary accessible actions such as search, close, share, and settings.
+
 ## Git and delivery
 
 Use intentional commits, never rewrite public history, and never commit generated secrets or private keys. CI must remain green. Update the parity ledger and documentation with every material feature change.
