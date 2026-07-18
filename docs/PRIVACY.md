@@ -1,6 +1,6 @@
 # Privacy policy draft
 
-getBible.Life is a local-first Bible reader. Notes, markings, preferences, reading position, and cached Scripture are stored on the user’s device. The application does not require an account and does not include advertising, analytics, behavioral tracking, or cross-device synchronization.
+getBible.live is a local-first Bible reader implemented with Flutter. Notes, markings, preferences, reading position, and cached Scripture are stored on the user’s device. The application does not require an account and does not include advertising, analytics, behavioral tracking, or cross-device synchronization.
 
 The application connects to GetBible services to retrieve translation metadata and Scripture. The network provider may process ordinary connection information such as IP address and request time as necessary to serve requests and protect the service. User notes and markings are not sent with Scripture requests.
 

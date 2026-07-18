@@ -15,6 +15,8 @@ SQLite stores cache entries, marking groups, markings, notes, and settings. Read
 
 Export emits schema version 2 and website-compatible `value`/`colorId` fields. Flutter-only preferences are additive and may be ignored by the website.
 
+The historical on-device database identifier remains `getbible_life` so an application-name or repository rename never strands existing local reader data.
+
 ## Migration procedure
 
 1. Increment the database schema version.

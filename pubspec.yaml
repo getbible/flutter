@@ -1,5 +1,5 @@
-name: getbible_life
-description: A private, local-first native Flutter Bible reader powered by GetBible API v2.
+name: getbible_live
+description: A local-first, cross-platform Flutter Bible reader powered by GetBible API v2.
 publish_to: none
 version: 1.0.0+1
 

@@ -17,7 +17,7 @@ class GetBibleApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final AppState state = context.watch<AppState>();
     return MaterialApp(
-      title: 'getBible.Life',
+      title: 'getBible.live',
       debugShowCheckedModeBanner: false,
       themeMode: switch (state.preferences.appearanceMode) {
         AppearanceMode.system => ThemeMode.system,

@@ -22,8 +22,13 @@ jobs:
         run: dart format --output=none .
       - run: flutter analyze
       - run: flutter test
+      - run: flutter build web --release --base-href /flutter/
       - run: flutter build apk --debug
       - uses: actions/upload-artifact@v4
         with:
-          name: getBible-Life-debug-apk
+          name: getBible-live-debug-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: getBible-live-web
+          path: build/web

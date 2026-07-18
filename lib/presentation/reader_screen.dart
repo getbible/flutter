@@ -14,7 +14,7 @@ class ReaderScreen extends StatelessWidget {
     final AppState state = context.watch<AppState>();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('getBible.Life'),
+        title: const Text('getBible.live'),
         actions: <Widget>[
           IconButton(tooltip: 'Reading settings', icon: const Icon(Icons.text_fields), onPressed: () => _settings(context, state)),
         ],
@@ -55,9 +55,9 @@ class _Navigation extends StatelessWidget {
   const _Navigation({required this.state});
   final AppState state;
   @override Widget build(BuildContext context) => Padding(padding: const EdgeInsets.all(8), child: Row(children: <Widget>[
-    Expanded(child: DropdownButtonFormField<String>(value: state.passage.translation, decoration: const InputDecoration(labelText: 'Translation'), items: state.translations.map((Translation t) => DropdownMenuItem(value: t.abbreviation, child: Text(t.abbreviation.toUpperCase()))).toList(), onChanged: (String? value) { if (value != null) state.loadPassage(Passage(translation: value, book: state.passage.book, chapter: state.passage.chapter)); })),
+    Expanded(child: DropdownButtonFormField<String>(initialValue: state.passage.translation, decoration: const InputDecoration(labelText: 'Translation'), items: state.translations.map((Translation t) => DropdownMenuItem(value: t.abbreviation, child: Text(t.abbreviation.toUpperCase()))).toList(), onChanged: (String? value) { if (value != null) state.loadPassage(Passage(translation: value, book: state.passage.book, chapter: state.passage.chapter)); })),
     const SizedBox(width: 8),
-    Expanded(flex: 2, child: DropdownButtonFormField<int>(value: state.passage.book, decoration: const InputDecoration(labelText: 'Book'), items: state.books.map((BibleBook b) => DropdownMenuItem(value: b.number, child: Text(b.name))).toList(), onChanged: (int? value) { if (value != null) state.loadPassage(Passage(translation: state.passage.translation, book: value, chapter: 1)); })),
+    Expanded(flex: 2, child: DropdownButtonFormField<int>(initialValue: state.passage.book, decoration: const InputDecoration(labelText: 'Book'), items: state.books.map((BibleBook b) => DropdownMenuItem(value: b.number, child: Text(b.name))).toList(), onChanged: (int? value) { if (value != null) state.loadPassage(Passage(translation: state.passage.translation, book: value, chapter: 1)); })),
     const SizedBox(width: 8),
     SizedBox(width: 92, child: TextFormField(initialValue: '${state.passage.chapter}', decoration: const InputDecoration(labelText: 'Chapter'), keyboardType: TextInputType.number, onFieldSubmitted: (String value) { final int? chapter = int.tryParse(value); if (chapter != null && chapter > 0) state.loadPassage(Passage(translation: state.passage.translation, book: state.passage.book, chapter: chapter)); })),
   ]));

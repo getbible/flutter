@@ -10,6 +10,6 @@ BackupData decodeBackup(String source) {
   } on FormatException {
     rethrow;
   } catch (error) {
-    throw FormatException('The selected file is not a valid getBible.Life backup.', error);
+    throw FormatException('The selected file is not a valid getBible backup.', error);
   }
 }

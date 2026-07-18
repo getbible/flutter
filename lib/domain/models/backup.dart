@@ -13,11 +13,11 @@ final class BackupData {
   });
 
   factory BackupData.fromJson(Object? value) {
-    final JsonMap json = requireJsonMap(value, 'getBible.Life backup');
+    final JsonMap json = requireJsonMap(value, 'getBible backup');
     final int version = requireInt(json, 'version');
     if (version != 1 && version != 2) {
       throw const FormatException(
-        'This getBible.Life backup version is not supported.',
+        'This getBible backup version is not supported.',
       );
     }
     final List<MarkingGroup> groups = requireJsonList(
@@ -79,7 +79,7 @@ final class BackupData {
     'notes': notes.map((VerseNote item) => item.toJson()).toList(),
     if (preferences != null) 'preferences': preferences!.toJson(),
     'source': <String, Object?>{
-      'application': 'getBible.Life Flutter',
+      'application': 'getBible.live Flutter',
       'schemaVersion': 1,
     },
   };

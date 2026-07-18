@@ -1,5 +1,11 @@
 # Testing and manual QA
 
+## Interactive platform testing
+
+Run `flutter devices` to list available targets. Use `flutter run -d chrome` for the quickest browser test, or `flutter run -d <device-id>` for a connected phone, emulator, simulator, or desktop target. A successful GitHub Actions run exposes Android APK and web-build artifacts from its summary page.
+
+pub.dev distributes Dart/Flutter libraries; it does not host or execute this application. Browser previews should use a locally served web build or an explicitly configured GitHub Pages deployment. Mobile prereleases should use Android APK/Play internal testing and iOS TestFlight.
+
 ## Automated
 
 ```bash

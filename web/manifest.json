@@ -1,11 +1,11 @@
 {
-    "name": "getBible.Life",
-    "short_name": "getBible.Life",
+    "name": "getBible.live",
+    "short_name": "getBible.live",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#F8F3E8",
     "theme_color": "#496456",
-    "description": "A private, local-first Bible reader powered by GetBible API v2.",
+    "description": "A local-first, cross-platform Flutter Bible reader powered by GetBible API v2.",
     "prefer_related_applications": false,
     "icons": [
         {
