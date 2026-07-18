@@ -48,7 +48,7 @@ class ReaderScreen extends StatelessWidget {
     SegmentedButton<AppearanceMode>(segments: AppearanceMode.values.map((AppearanceMode value) => ButtonSegment(value: value, label: Text(value.name))).toList(), selected: <AppearanceMode>{state.preferences.appearanceMode}, onSelectionChanged: (Set<AppearanceMode> value) => state.setAppearance(value.first)),
     const SizedBox(height: 16),
     SegmentedButton<ReaderLayout>(segments: const <ButtonSegment<ReaderLayout>>[ButtonSegment(value: ReaderLayout.lines, label: Text('Lines')), ButtonSegment(value: ReaderLayout.paragraph, label: Text('Paragraph'))], selected: <ReaderLayout>{state.preferences.layout}, onSelectionChanged: (Set<ReaderLayout> value) => state.setLayout(value.first)),
-  ])));
+  ]))));
 }
 
 class _Navigation extends StatelessWidget {

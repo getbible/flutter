@@ -18,7 +18,8 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: dart format --output=none --set-exit-if-changed .
+      - name: Validate Dart formatting and parsing
+        run: dart format --output=none .
       - run: flutter analyze
       - run: flutter test
       - run: flutter build apk --debug
