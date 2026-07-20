@@ -54,6 +54,8 @@ final class AppState extends ChangeNotifier {
   bool searchLoading = false;
   String? searchError;
   List<SearchVerse> searchResults = const [];
+  List<SearchVerse> _allSearchResults = const [];
+  bool searchComplete = true;
   int _passageRequest = 0;
   int _searchRequest = 0;
 
@@ -150,6 +152,47 @@ final class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> saveMarkingGroup({
+    String? id,
+    required String name,
+    required String color,
+  }) async {
+    final String normalizedName = name.trim();
+    final String normalizedColor = color.trim().toUpperCase();
+    if (normalizedName.isEmpty ||
+        !RegExp(r'^#[0-9A-F]{6}$').hasMatch(normalizedColor)) {
+      throw const FormatException('Enter a group name and a six-digit hex color.');
+    }
+    final MarkingGroup? existing = id == null
+        ? null
+        : groups.where((MarkingGroup item) => item.id == id).firstOrNull;
+    final MarkingGroup group = MarkingGroup(
+      id: existing?.id ?? const Uuid().v4(),
+      name: normalizedName,
+      color: normalizedColor,
+      sortOrder: existing?.sortOrder ?? groups.length,
+      isStarter: existing?.isStarter ?? false,
+      updatedAt: DateTime.now().toUtc(),
+    );
+    await annotations.saveGroup(group);
+    groups = await annotations.getGroups();
+    notifyListeners();
+  }
+
+  Future<void> deleteMarkingGroup(String groupId) async {
+    if (groups.length <= 1) return;
+    await annotations.deleteGroup(groupId);
+    groups = await annotations.getGroups();
+    markings = await annotations.getMarkingsForPassage(passage);
+    savedMarkings = await annotations.getMarkings();
+    if (!groups.any(
+      (MarkingGroup item) => item.id == preferences.activeMarkingGroupId,
+    )) {
+      await selectActiveGroup(groups.first.id);
+    }
+    notifyListeners();
+  }
+
   Future<void> markWholeVerse(Verse verse, String reference, String groupId) async {
     final List<Marking> remove = markings.where((Marking item) => item.verse == verse.verse && item.isWholeVerse).toList();
     final Marking add = Marking(
@@ -240,6 +283,8 @@ final class AppState extends ChangeNotifier {
     searchLoading = true;
     searchError = null;
     searchResults = const <SearchVerse>[];
+    _allSearchResults = const <SearchVerse>[];
+    searchComplete = false;
     notifyListeners();
     try {
       final Translation? translation = currentTranslation;
@@ -247,7 +292,9 @@ final class AppState extends ChangeNotifier {
       final RepositoryResult<WholeTranslation> corpus = await bibles.getWholeTranslation(translation);
       final List<SearchVerse> results = await searchTranslation(corpus.data, query, options);
       if (request != _searchRequest) return;
-      searchResults = results;
+      _allSearchResults = results;
+      searchResults = results.take(20).toList(growable: false);
+      searchComplete = searchResults.length >= results.length;
     } catch (exception) {
       if (request == _searchRequest) searchError = exception.toString();
     } finally {
@@ -256,6 +303,17 @@ final class AppState extends ChangeNotifier {
         notifyListeners();
       }
     }
+  }
+
+  void loadMoreSearchResults() {
+    if (searchLoading || searchComplete) return;
+    final int requested = searchResults.length + 20;
+    final int nextLength = requested > _allSearchResults.length
+        ? _allSearchResults.length
+        : requested;
+    searchResults = _allSearchResults.take(nextLength).toList(growable: false);
+    searchComplete = nextLength >= _allSearchResults.length;
+    notifyListeners();
   }
 
   Future<void> setAppearance(AppearanceMode mode) async {

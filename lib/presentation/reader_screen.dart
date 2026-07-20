@@ -780,6 +780,19 @@ class _StudyDrawerState extends State<_StudyDrawer> {
             Expanded(
               child: _tab == 0 ? _markings(state) : _notes(state),
             ),
+            if (_tab == 0)
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: OutlinedButton.icon(
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (BuildContext context) =>
+                        _ManageGroupsDialog(state: state),
+                  ),
+                  icon: const Icon(Icons.palette_outlined),
+                  label: const Text('Manage groups'),
+                ),
+              ),
           ],
         ),
       ),
@@ -872,6 +885,165 @@ class _StudyDrawerState extends State<_StudyDrawer> {
         );
       },
     );
+  }
+}
+
+class _ManageGroupsDialog extends StatefulWidget {
+  const _ManageGroupsDialog({required this.state});
+
+  final AppState state;
+
+  @override
+  State<_ManageGroupsDialog> createState() => _ManageGroupsDialogState();
+}
+
+class _ManageGroupsDialogState extends State<_ManageGroupsDialog> {
+  String? _editingId;
+  final TextEditingController _name = TextEditingController();
+  final TextEditingController _color = TextEditingController(text: '#FDE68A');
+  String? _error;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _color.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Marking groups'),
+      content: SizedBox(
+        width: 520,
+        height: MediaQuery.sizeOf(context).height * 0.7,
+        child: Column(
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: TextField(
+                    controller: _name,
+                    decoration: const InputDecoration(labelText: 'Group name'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 116,
+                  child: TextField(
+                    controller: _color,
+                    decoration: const InputDecoration(labelText: 'Color'),
+                  ),
+                ),
+                IconButton(
+                  tooltip: _editingId == null ? 'Add group' : 'Save group',
+                  onPressed: _save,
+                  icon: Icon(_editingId == null ? Icons.add : Icons.check),
+                ),
+              ],
+            ),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+            const Divider(height: 24),
+            Expanded(
+              child: AnimatedBuilder(
+                animation: widget.state,
+                builder: (BuildContext context, Widget? child) =>
+                    ListView.builder(
+                  itemCount: widget.state.groups.length,
+                  itemBuilder: (BuildContext context, int index) {
+                    final MarkingGroup group = widget.state.groups[index];
+                    return ListTile(
+                      leading: Container(
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: _hexColor(group.color),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      title: Text(group.name),
+                      subtitle: Text(group.color),
+                      onTap: () => setState(() {
+                        _editingId = group.id;
+                        _name.text = group.name;
+                        _color.text = group.color;
+                        _error = null;
+                      }),
+                      trailing: IconButton(
+                        tooltip: 'Delete ${group.name}',
+                        onPressed: widget.state.groups.length <= 1
+                            ? null
+                            : () => _delete(group),
+                        icon: const Icon(Icons.delete_outline),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _save() async {
+    try {
+      await widget.state.saveMarkingGroup(
+        id: _editingId,
+        name: _name.text,
+        color: _color.text,
+      );
+      if (!mounted) return;
+      setState(() {
+        _editingId = null;
+        _name.clear();
+        _color.text = '#FDE68A';
+        _error = null;
+      });
+    } on FormatException catch (error) {
+      setState(() => _error = error.toString());
+    }
+  }
+
+  Future<void> _delete(MarkingGroup group) async {
+    final int count = widget.state.savedMarkings
+        .where((Marking item) => item.groupId == group.id)
+        .length;
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('Delete marking group?'),
+        content: Text(
+          'Delete “${group.name}” and its $count saved markings? This cannot be undone.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await widget.state.deleteMarkingGroup(group.id);
   }
 }
 
@@ -987,16 +1159,32 @@ class _SearchDialogState extends State<_SearchDialog> {
                   if (widget.state.searchResults.isEmpty) {
                     return const Center(child: Text('Enter a search above.'));
                   }
-                  return ListView.builder(
-                    itemCount: widget.state.searchResults.length,
-                    itemBuilder: (BuildContext context, int index) {
-                      final SearchVerse result = widget.state.searchResults[index];
-                      return ListTile(
-                        title: Text(result.reference),
-                        subtitle: Text(result.text),
-                        onTap: () => widget.onOpen(result),
-                      );
+                  return NotificationListener<ScrollNotification>(
+                    onNotification: (ScrollNotification notice) {
+                      if (notice.metrics.extentAfter < 240) {
+                        widget.state.loadMoreSearchResults();
+                      }
+                      return false;
                     },
+                    child: ListView.builder(
+                      itemCount: widget.state.searchResults.length +
+                          (widget.state.searchComplete ? 0 : 1),
+                      itemBuilder: (BuildContext context, int index) {
+                        if (index == widget.state.searchResults.length) {
+                          return const Padding(
+                            padding: EdgeInsets.all(20),
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
+                        final SearchVerse result =
+                            widget.state.searchResults[index];
+                        return ListTile(
+                          title: Text(result.reference),
+                          subtitle: Text(result.text),
+                          onTap: () => widget.onOpen(result),
+                        );
+                      },
+                    ),
                   );
                 },
               ),
