@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:uuid/uuid.dart';
 
 import '../data/api/getbible_api_client.dart';
 import '../data/database/local_database.dart';
@@ -10,8 +11,11 @@ import '../domain/models/bible.dart';
 import '../domain/models/cache.dart';
 import '../domain/models/passage.dart';
 import '../domain/models/preferences.dart';
+import '../domain/models/search.dart';
+import '../services/search_service.dart';
 
-export '../domain/models/preferences.dart' show AppearanceMode, ReaderLayout;
+export '../domain/models/preferences.dart'
+    show AppearanceMode, ReaderLayout, ReadingWidth;
 
 final class AppState extends ChangeNotifier {
   AppState._(this.database, this.bibles, this.annotations, this.settings);
@@ -37,13 +41,41 @@ final class AppState extends ChangeNotifier {
   Passage passage = const Passage(translation: 'kjv', book: 49, chapter: 5);
   List<Translation> translations = const [];
   List<BibleBook> books = const [];
+  List<ChapterInfo> chapters = const [];
   BibleChapter? current;
   CacheFreshness? freshness;
   List<MarkingGroup> groups = const [];
   List<Marking> markings = const [];
   List<VerseNote> notes = const [];
+  List<Marking> savedMarkings = const [];
+  List<VerseNote> savedNotes = const [];
   bool loading = true;
   String? error;
+  bool searchLoading = false;
+  String? searchError;
+  List<SearchVerse> searchResults = const [];
+  int _passageRequest = 0;
+  int _searchRequest = 0;
+
+  Translation? get currentTranslation => translations
+      .where((Translation item) => item.abbreviation == passage.translation)
+      .firstOrNull;
+
+  MarkingGroup? get activeGroup => groups
+      .where((MarkingGroup item) => item.id == preferences.activeMarkingGroupId)
+      .firstOrNull;
+
+  bool get canGoPrevious {
+    final int bookIndex = books.indexWhere((BibleBook item) => item.number == passage.book);
+    final int chapterIndex = chapters.indexWhere((ChapterInfo item) => item.chapter == passage.chapter);
+    return chapterIndex > 0 || bookIndex > 0;
+  }
+
+  bool get canGoNext {
+    final int bookIndex = books.indexWhere((BibleBook item) => item.number == passage.book);
+    final int chapterIndex = chapters.indexWhere((ChapterInfo item) => item.chapter == passage.chapter);
+    return chapterIndex >= 0 && (chapterIndex < chapters.length - 1 || (bookIndex >= 0 && bookIndex < books.length - 1));
+  }
 
   Future<void> initialize() async {
     preferences = await settings.getPreferences();
@@ -54,6 +86,7 @@ final class AppState extends ChangeNotifier {
   }
 
   Future<void> loadPassage(Passage next) async {
+    final int request = ++_passageRequest;
     loading = true;
     error = null;
     notifyListeners();
@@ -61,19 +94,167 @@ final class AppState extends ChangeNotifier {
       final RepositoryResult<List<Translation>> translationResult = await bibles.getTranslations();
       translations = translationResult.data;
       final RepositoryResult<List<BibleBook>> bookResult = await bibles.getBooks(next.translation);
+      if (request != _passageRequest) return;
       books = bookResult.data;
+      final RepositoryResult<List<ChapterInfo>> chapterIndexResult = await bibles.getChapters(next.translation, next.book);
+      if (request != _passageRequest) return;
+      chapters = chapterIndexResult.data;
+      if (!chapters.any((ChapterInfo item) => item.chapter == next.chapter)) {
+        throw const FormatException('That chapter is not available in this translation.');
+      }
       final RepositoryResult<BibleChapter> chapterResult = await bibles.getChapter(next.translation, next.book, next.chapter);
+      if (request != _passageRequest) return;
       passage = next;
       current = chapterResult.data;
       freshness = chapterResult.freshness;
       markings = await annotations.getMarkingsForPassage(next);
       notes = await annotations.getNotesForPassage(next);
+      savedMarkings = await annotations.getMarkings();
+      savedNotes = await annotations.getNotes();
       await settings.saveLastReadingPosition(LastReadingPosition(passage: next, verse: next.verse ?? 1, updatedAt: DateTime.now().toUtc()));
     } catch (exception) {
       error = exception.toString();
     } finally {
-      loading = false;
-      notifyListeners();
+      if (request == _passageRequest) {
+        loading = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> turnChapter(int direction) async {
+    if (direction == 0 || loading) return;
+    final int chapterIndex = chapters.indexWhere((ChapterInfo item) => item.chapter == passage.chapter);
+    final int bookIndex = books.indexWhere((BibleBook item) => item.number == passage.book);
+    if (chapterIndex < 0 || bookIndex < 0) return;
+    if (direction < 0) {
+      if (chapterIndex > 0) {
+        await loadPassage(passage.copyWith(chapter: chapters[chapterIndex - 1].chapter, clearVerse: true));
+      } else if (bookIndex > 0) {
+        final BibleBook previousBook = books[bookIndex - 1];
+        final RepositoryResult<List<ChapterInfo>> previousChapters = await bibles.getChapters(passage.translation, previousBook.number);
+        await loadPassage(Passage(translation: passage.translation, book: previousBook.number, chapter: previousChapters.data.last.chapter));
+      }
+      return;
+    }
+    if (chapterIndex < chapters.length - 1) {
+      await loadPassage(passage.copyWith(chapter: chapters[chapterIndex + 1].chapter, clearVerse: true));
+    } else if (bookIndex < books.length - 1) {
+      await loadPassage(Passage(translation: passage.translation, book: books[bookIndex + 1].number, chapter: 1));
+    }
+  }
+
+  Future<void> selectActiveGroup(String groupId) async {
+    preferences = preferences.copyWith(activeMarkingGroupId: groupId);
+    await settings.savePreferences(preferences);
+    notifyListeners();
+  }
+
+  Future<void> markWholeVerse(Verse verse, String reference, String groupId) async {
+    final List<Marking> remove = markings.where((Marking item) => item.verse == verse.verse && item.isWholeVerse).toList();
+    final Marking add = Marking(
+      id: const Uuid().v4(),
+      passage: passage,
+      verse: verse.verse,
+      start: null,
+      end: null,
+      quote: verse.text,
+      reference: reference,
+      groupId: groupId,
+      createdAt: DateTime.now().toUtc(),
+    );
+    await annotations.replaceMarkings(remove, <Marking>[add]);
+    await selectActiveGroup(groupId);
+    markings = await annotations.getMarkingsForPassage(passage);
+    savedMarkings = await annotations.getMarkings();
+    notifyListeners();
+  }
+
+  Future<void> markSelectedText(Verse verse, int start, int end, String reference, String groupId) async {
+    if (start < 0 || end <= start || end > verse.text.length) return;
+    await annotations.saveMarking(Marking(
+      id: const Uuid().v4(),
+      passage: passage,
+      verse: verse.verse,
+      start: start,
+      end: end,
+      quote: verse.text.substring(start, end),
+      reference: reference,
+      groupId: groupId,
+      createdAt: DateTime.now().toUtc(),
+    ));
+    await selectActiveGroup(groupId);
+    markings = await annotations.getMarkingsForPassage(passage);
+    savedMarkings = await annotations.getMarkings();
+    notifyListeners();
+  }
+
+  Future<void> removeWholeVerseMarking(int verse) async {
+    final List<Marking> remove = markings.where((Marking item) => item.verse == verse && item.isWholeVerse).toList();
+    await annotations.replaceMarkings(remove, const <Marking>[]);
+    markings = await annotations.getMarkingsForPassage(passage);
+    savedMarkings = await annotations.getMarkings();
+    notifyListeners();
+  }
+
+  bool selectionHasMarking(int verse, int start, int end) => markings.any((Marking item) =>
+      item.verse == verse && !item.isWholeVerse && item.start! < end && item.end! > start);
+
+  Future<void> removeSelectionMarkings(int verse, int start, int end) async {
+    final List<Marking> remove = markings.where((Marking item) =>
+      item.verse == verse && !item.isWholeVerse && item.start! < end && item.end! > start).toList();
+    await annotations.replaceMarkings(remove, const <Marking>[]);
+    markings = await annotations.getMarkingsForPassage(passage);
+    savedMarkings = await annotations.getMarkings();
+    notifyListeners();
+  }
+
+  Future<void> saveVerseNote(int verse, String reference, String text) async {
+    final String value = text.trim();
+    if (value.isEmpty) return;
+    final VerseNote? existing = notes.where((VerseNote item) => item.verse == verse).firstOrNull;
+    final DateTime now = DateTime.now().toUtc();
+    await annotations.saveNote(VerseNote(
+      id: existing?.id ?? const Uuid().v4(),
+      passage: passage,
+      verse: verse,
+      reference: reference,
+      text: value,
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+    ));
+    notes = await annotations.getNotesForPassage(passage);
+    savedNotes = await annotations.getNotes();
+    notifyListeners();
+  }
+
+  Future<void> deleteVerseNote(int verse) async {
+    await annotations.deleteNote('${passage.canonicalKey}/$verse');
+    notes = await annotations.getNotesForPassage(passage);
+    savedNotes = await annotations.getNotes();
+    notifyListeners();
+  }
+
+  Future<void> search(String query, SearchOptions options) async {
+    final int request = ++_searchRequest;
+    searchLoading = true;
+    searchError = null;
+    searchResults = const <SearchVerse>[];
+    notifyListeners();
+    try {
+      final Translation? translation = currentTranslation;
+      if (translation == null) throw StateError('The selected translation is unavailable.');
+      final RepositoryResult<WholeTranslation> corpus = await bibles.getWholeTranslation(translation);
+      final List<SearchVerse> results = await searchTranslation(corpus.data, query, options);
+      if (request != _searchRequest) return;
+      searchResults = results;
+    } catch (exception) {
+      if (request == _searchRequest) searchError = exception.toString();
+    } finally {
+      if (request == _searchRequest) {
+        searchLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -85,6 +266,36 @@ final class AppState extends ChangeNotifier {
 
   Future<void> setLayout(ReaderLayout layout) async {
     preferences = preferences.copyWith(layout: layout);
+    await settings.savePreferences(preferences);
+    notifyListeners();
+  }
+
+  Future<void> setTextSize(double size) async {
+    preferences = preferences.copyWith(textSize: size);
+    await settings.savePreferences(preferences);
+    notifyListeners();
+  }
+
+  Future<void> setLightPalette(String palette) async {
+    preferences = preferences.copyWith(lightPalette: palette);
+    await settings.savePreferences(preferences);
+    notifyListeners();
+  }
+
+  Future<void> setDarkPalette(String palette) async {
+    preferences = preferences.copyWith(darkPalette: palette);
+    await settings.savePreferences(preferences);
+    notifyListeners();
+  }
+
+  Future<void> setReaderFont(String font) async {
+    preferences = preferences.copyWith(readerFont: font);
+    await settings.savePreferences(preferences);
+    notifyListeners();
+  }
+
+  Future<void> setReadingWidth(ReadingWidth width) async {
+    preferences = preferences.copyWith(readingWidth: width);
     await settings.savePreferences(preferences);
     notifyListeners();
   }

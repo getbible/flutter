@@ -24,9 +24,40 @@ class GetBibleApp extends StatelessWidget {
         AppearanceMode.light => ThemeMode.light,
         AppearanceMode.dark => ThemeMode.dark,
       },
-      theme: ThemeData(colorSchemeSeed: const Color(0xff276b9c), useMaterial3: true),
-      darkTheme: ThemeData(colorSchemeSeed: const Color(0xff7fc8f8), brightness: Brightness.dark, useMaterial3: true),
+      theme: _readerTheme(state.preferences.lightPalette, Brightness.light),
+      darkTheme: _readerTheme(state.preferences.darkPalette, Brightness.dark),
       home: const ReaderScreen(),
     );
   }
+}
+
+ThemeData _readerTheme(String palette, Brightness brightness) {
+  final Color background = switch (palette) {
+    'paper' => const Color(0xfff6f0e4),
+    'ivory' => const Color(0xfffffced),
+    'mist' => const Color(0xfff1f5f7),
+    'brown' => const Color(0xff211b18),
+    'charcoal' => const Color(0xff191b1d),
+    'navy' => const Color(0xff111a28),
+    'black' => const Color(0xff090909),
+    _ => const Color(0xffffffff),
+  };
+  final ColorScheme scheme = ColorScheme.fromSeed(
+    seedColor: brightness == Brightness.dark
+        ? const Color(0xff7fc8f8)
+        : const Color(0xff276b9c),
+    brightness: brightness,
+  ).copyWith(surface: background);
+  return ThemeData(
+    colorScheme: scheme,
+    scaffoldBackgroundColor: background,
+    canvasColor: background,
+    useMaterial3: true,
+    appBarTheme: AppBarTheme(
+      backgroundColor: background,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      shape: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+    ),
+  );
 }

@@ -115,6 +115,7 @@ All platform launchers, favicons, splash artwork, window icons, and in-app ident
 - [Data and backup compatibility](docs/DATA_AND_BACKUPS.md)
 - [Feature-parity ledger](docs/FEATURE_PARITY.md)
 - [Web-to-Flutter parity contract](docs/WEB_FLUTTER_PARITY.md)
+- [Source-backed parity audit (July 2026)](docs/PARITY_AUDIT_2026-07.md)
 - [Brand assets](docs/BRANDING.md)
 - [Testing and QA](docs/TESTING.md)
 - [Deployment and distribution](docs/DEPLOYMENT.md)
