@@ -17,6 +17,11 @@ flutter test integration_test
 
 Required suites cover serialization, API parsing, passage links, expiry/hash invalidation, offline fallback, Unicode/RTL search, marking overlap removal, annotation translation rules, note merge/order, backup fixtures, migrations, reader widgets, toolbar positioning, inline notes, and accessibility semantics.
 
+The cached-Scripture status regression suite renders both verified and
+unverified offline states in a narrow viewport at 200% text scaling. This
+guards the web and small-screen reader against assertion failures and layout
+overflow before an offline-cache change is merged.
+
 ## Primary manual journeys
 
 1. Clean install opens daily/KJV behavior and changes translation.

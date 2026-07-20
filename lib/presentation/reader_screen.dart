@@ -55,7 +55,7 @@ class ReaderScreen extends StatelessWidget {
     return Directionality(textDirection: direction, child: Column(children: <Widget>[
       _Navigation(state: state),
       if (state.freshness != CacheFreshness.fresh)
-        MaterialBanner(content: Text(state.freshness == CacheFreshness.cachedVerified ? 'Verified cached Scripture' : 'Offline cached Scripture — verification unavailable'), actions: const <Widget>[]),
+        CacheStatusNotice(freshness: state.freshness!),
       Expanded(child: state.preferences.layout == ReaderLayout.lines
         ? ListView.builder(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12), itemCount: chapter.verses.length, itemBuilder: (BuildContext context, int index) => _VerseLine(verse: chapter.verses[index], size: state.preferences.textSize))
         : SingleChildScrollView(padding: const EdgeInsets.all(20), child: SelectableText(chapter.verses.map((Verse v) => '${v.verse} ${v.text}').join('  '), style: TextStyle(fontSize: state.preferences.textSize, height: 1.55))),
@@ -68,6 +68,61 @@ class ReaderScreen extends StatelessWidget {
     const SizedBox(height: 16),
     SegmentedButton<ReaderLayout>(segments: const <ButtonSegment<ReaderLayout>>[ButtonSegment(value: ReaderLayout.lines, label: Text('Lines')), ButtonSegment(value: ReaderLayout.paragraph, label: Text('Paragraph'))], selected: <ReaderLayout>{state.preferences.layout}, onSelectionChanged: (Set<ReaderLayout> value) => state.setLayout(value.first)),
   ]))));
+}
+
+/// A compact, non-interactive status notice for Scripture served from cache.
+///
+/// [MaterialBanner] is reserved for messages with at least one action. Cache
+/// freshness is informational, so this responsive notice avoids presenting a
+/// fake dismiss action and remains usable with narrow windows and large text.
+class CacheStatusNotice extends StatelessWidget {
+  const CacheStatusNotice({required this.freshness, super.key})
+    : assert(freshness != CacheFreshness.fresh);
+
+  final CacheFreshness freshness;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool verified = freshness == CacheFreshness.cachedVerified;
+    final String message = verified
+        ? 'Verified cached Scripture'
+        : 'Offline cached Scripture — verification unavailable';
+    final ColorScheme colors = Theme.of(context).colorScheme;
+
+    return Semantics(
+      container: true,
+      liveRegion: true,
+      label: message,
+      child: ColoredBox(
+        color: colors.surfaceContainerHighest,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              ExcludeSemantics(
+                child: Container(
+                  width: 4,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: verified ? colors.primary : colors.error,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  message,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _Navigation extends StatelessWidget {
