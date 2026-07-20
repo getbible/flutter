@@ -22,6 +22,11 @@ unverified offline states in a narrow viewport at 200% text scaling. This
 guards the web and small-screen reader against assertion failures and layout
 overflow before an offline-cache change is merged.
 
+The reader-menu regression suite renders an API-supplied long translation name
+inside the exact 244 logical-pixel field reported by the web target at 200%
+text scaling. It also opens the compact verification badge and checks both the
+hash-verified and saved-offline explanations.
+
 ## Primary manual journeys
 
 1. Clean install opens daily/KJV behavior and changes translation.

@@ -13,10 +13,10 @@ Status meanings: **Implemented** exists in source; **Partial** needs remaining U
 | Swipe and cross-book navigation | Implemented core | Shared cross-book turn operation, horizontal swipe, Alt+arrow shortcuts, arrows/mobile row, and tested deliberate double-boundary intent; device gesture QA remains |
 | Deep links/shareable links | Partial | Parser exists; GoRouter/platform association needs integration tests |
 | RTL and appearance modes | Implemented | Device selection behavior still requires QA |
-| Contextual selection toolbar | Partial | Verse-number menu anchors to its row and native selected-text toolbar exposes active marking/removal; compact all-group anchored palette and positioning widget tests remain |
-| Whole/text markings and overlap rules | Implemented core | Whole-verse recolor/removal, selected-range marking/removal, overlap rendering, active group memory, Study lists, and add/edit/recolor/delete group UI exist; full journey tests and backup UI remain |
+| Contextual selection toolbar | Partial | Verse-number and native selected-text menus expose the active group, searchable compact all-group palette, note/removal actions, and preserve native copy controls; exact overlay-positioning widget tests remain |
+| Whole/text markings and overlap rules | Implemented core | Whole-verse recolor/removal, selected-range marking/removal, overlap rendering, active group memory, searchable Study card grid, per-marking open/delete, and add/edit/recolor/delete group UI exist; full journey tests and backup UI remain |
 | Inline notes | Implemented core | Add/edit/delete editor opens under its verse and saved note folds inline; keyboard-shortcut and full widget journey tests remain |
-| Search modes and isolate execution | Partial | Full filter UI and isolate search exist with progressive 20-result rendering; cooperative corpus parsing, match highlighting, seven-second arrival emphasis, and cancellation tests remain |
+| Search modes and isolate execution | Partial | Full filter UI, total-result count, isolate search, and progressive 20-result rendering exist; cooperative corpus parsing, match highlighting, seven-second arrival emphasis, and cancellation tests remain |
 | Website-compatible backups | Implemented core | Model validation/merge exists; native file picker/share UI remains |
 | Markdown generation | Implemented core | Native copy/share/save UI remains |
 | Complete website localization | Partial | All 69 compact website locale packs are mirrored and contract-tested; Flutter runtime message loading and full widget adoption remain |

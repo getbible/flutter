@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../application/app_state.dart';
 import '../domain/models/annotations.dart';
@@ -11,6 +12,8 @@ import '../domain/models/cache.dart';
 import '../domain/models/passage.dart';
 import '../domain/models/search.dart';
 import 'boundary_turn_controller.dart';
+import 'widgets/reader_translation_field.dart';
+import 'widgets/scripture_verification_badge.dart';
 
 class ReaderScreen extends StatefulWidget {
   const ReaderScreen({super.key});
@@ -70,8 +73,6 @@ class _ReaderScreenState extends State<ReaderScreen> {
       child: Column(
         children: <Widget>[
           _ChapterHeading(state: state),
-          if (state.freshness != CacheFreshness.fresh)
-            CacheStatusNotice(freshness: state.freshness!),
           Expanded(
             child: GestureDetector(
               behavior: HitTestBehavior.translucent,
@@ -173,11 +174,27 @@ class _ReaderScreenState extends State<ReaderScreen> {
         Overlay.of(context).context.findRenderObject()! as RenderBox;
     final Offset topLeft = button.localToGlobal(Offset.zero, ancestor: overlay);
     final Rect target = topLeft & button.size;
+    final MarkingGroup? active = state.activeGroup ?? state.groups.firstOrNull;
     final String? choice = await showMenu<String>(
       context: context,
       position: RelativeRect.fromRect(target, Offset.zero & overlay.size),
       semanticLabel: 'Choose marking for $reference',
       items: <PopupMenuEntry<String>>[
+        if (active != null)
+          PopupMenuItem<String>(
+            value: active.id,
+            child: _GroupChoice(group: active),
+          ),
+        if (state.groups.length > 1)
+          const PopupMenuItem<String>(
+            value: '__groups__',
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.palette_outlined),
+              title: Text('More marking groups…'),
+            ),
+          ),
+        const PopupMenuDivider(),
         PopupMenuItem<String>(
           value: '__note__',
           child: Text(
@@ -194,12 +211,6 @@ class _ReaderScreenState extends State<ReaderScreen> {
             value: '__none__',
             child: Text('Remove verse marking'),
           ),
-        const PopupMenuDivider(),
-        for (final MarkingGroup group in state.groups)
-          PopupMenuItem<String>(
-            value: group.id,
-            child: _GroupChoice(group: group),
-          ),
       ],
     );
     if (choice == null || !mounted) return;
@@ -207,10 +218,21 @@ class _ReaderScreenState extends State<ReaderScreen> {
       setState(() => _editingNote = verse.verse);
     } else if (choice == '__none__') {
       await state.removeWholeVerseMarking(verse.verse);
+    } else if (choice == '__groups__') {
+      final String? groupId = await _showMarkingGroupPicker(context, state);
+      if (groupId != null) await state.markWholeVerse(verse, reference, groupId);
     } else {
       await state.markWholeVerse(verse, reference, choice);
     }
   }
+
+  Future<String?> _showMarkingGroupPicker(
+    BuildContext context,
+    AppState state,
+  ) => showDialog<String>(
+    context: context,
+    builder: (BuildContext context) => _MarkingGroupPicker(groups: state.groups),
+  );
 
   Future<void> _showSearch(BuildContext context, AppState state) async {
     await showDialog<void>(
@@ -350,16 +372,8 @@ class _ChapterHeading extends StatelessWidget {
             style: Theme.of(context).textTheme.labelSmall,
           ),
           const Spacer(),
-          Semantics(
-            label: state.freshness == CacheFreshness.cachedUnverified
-                ? 'Saved offline Scripture'
-                : 'Verified Scripture',
-            child: Text(
-              state.freshness == CacheFreshness.cachedUnverified
-                  ? 'SAVED'
-                  : 'VERIFIED',
-              style: Theme.of(context).textTheme.labelSmall,
-            ),
+          ScriptureVerificationBadge(
+            freshness: state.freshness ?? CacheFreshness.cachedUnverified,
           ),
         ],
       ),
@@ -553,6 +567,28 @@ class _SelectableMarkedVerse extends StatelessWidget {
                   reference,
                   state.activeGroup!.id,
                 ));
+              },
+            ),
+          if (valid && state.groups.length > 1)
+            ContextMenuButtonItem(
+              label: 'More marking groups…',
+              onPressed: () async {
+                editableTextState.hideToolbar();
+                final String? groupId = await showDialog<String>(
+                  context: context,
+                  builder: (BuildContext context) =>
+                      _MarkingGroupPicker(groups: state.groups),
+                );
+                if (!context.mounted) return;
+                if (groupId != null) {
+                  await state.markSelectedText(
+                    verse,
+                    selection.start,
+                    selection.end,
+                    reference,
+                    groupId,
+                  );
+                }
               },
             ),
           if (valid &&
@@ -760,12 +796,17 @@ class _StudyDrawer extends StatefulWidget {
 class _StudyDrawerState extends State<_StudyDrawer> {
   int _tab = 0;
   String? _selectedGroup;
+  String _groupQuery = '';
 
   @override
   Widget build(BuildContext context) {
     final AppState state = widget.state;
+    final double screenWidth = MediaQuery.sizeOf(context).width;
+    final double drawerWidth = screenWidth <= 720
+        ? (screenWidth - 24).clamp(300, 480).toDouble()
+        : (screenWidth * 0.48).clamp(430, 680).toDouble();
     return Drawer(
-      width: MediaQuery.sizeOf(context).width.clamp(300, 430).toDouble(),
+      width: drawerWidth,
       child: SafeArea(
         child: Column(
           children: <Widget>[
@@ -841,6 +882,26 @@ class _StudyDrawerState extends State<_StudyDrawer> {
                           chapter: marking.passage.chapter,
                           verse: marking.verse,
                         )),
+                        trailing: Wrap(
+                          spacing: 0,
+                          children: <Widget>[
+                            IconButton(
+                              tooltip: 'Open ${marking.reference}',
+                              icon: const Icon(Icons.open_in_new, size: 20),
+                              onPressed: () => widget.onOpenPassage(Passage(
+                                translation: state.passage.translation,
+                                book: marking.passage.book,
+                                chapter: marking.passage.chapter,
+                                verse: marking.verse,
+                              )),
+                            ),
+                            IconButton(
+                              tooltip: 'Delete marking at ${marking.reference}',
+                              icon: const Icon(Icons.delete_outline, size: 20),
+                              onPressed: () => _deleteMarking(state, marking),
+                            ),
+                          ],
+                        ),
                       );
                     },
                   ),
@@ -848,27 +909,85 @@ class _StudyDrawerState extends State<_StudyDrawer> {
         ],
       );
     }
-    return ListView.builder(
-      itemCount: state.groups.length,
-      itemBuilder: (BuildContext context, int index) {
-        final MarkingGroup group = state.groups[index];
-        final int count = state.savedMarkings.where((Marking item) => item.groupId == group.id).length;
-        return ListTile(
-          leading: Container(
-            width: 18,
-            height: 18,
-            decoration: BoxDecoration(color: _hexColor(group.color), shape: BoxShape.circle),
+    final String query = _groupQuery.trim().toLowerCase();
+    final List<MarkingGroup> visible = state.groups
+        .where((MarkingGroup group) => query.isEmpty || group.name.toLowerCase().contains(query))
+        .toList(growable: false);
+    return Column(
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+          child: TextField(
+            decoration: const InputDecoration(
+              hintText: 'Find a marking group',
+              prefixIcon: Icon(Icons.search),
+              isDense: true,
+            ),
+            onChanged: (String value) => setState(() => _groupQuery = value),
           ),
-          title: Text(group.name),
-          subtitle: Text('$count markings'),
-          selected: state.preferences.activeMarkingGroupId == group.id,
-          onTap: () {
-            unawaited(state.selectActiveGroup(group.id));
-            setState(() => _selectedGroup = group.id);
-          },
-        );
-      },
+        ),
+        Expanded(
+          child: GridView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 220,
+              mainAxisExtent: 82,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+            ),
+            itemCount: visible.length,
+            itemBuilder: (BuildContext context, int index) {
+              final MarkingGroup group = visible[index];
+              final int count = state.savedMarkings.where((Marking item) => item.groupId == group.id).length;
+              final bool selected = state.preferences.activeMarkingGroupId == group.id;
+              return Card(
+                clipBehavior: Clip.antiAlias,
+                color: selected ? Theme.of(context).colorScheme.secondaryContainer : null,
+                child: InkWell(
+                  onTap: () {
+                    unawaited(state.selectActiveGroup(group.id));
+                    setState(() => _selectedGroup = group.id);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: <Widget>[
+                        Container(width: 18, height: 40, decoration: BoxDecoration(color: _hexColor(group.color), borderRadius: BorderRadius.circular(6))),
+                        const SizedBox(width: 10),
+                        Expanded(child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(group.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
+                            Text('$count ${count == 1 ? 'marking' : 'markings'}', style: Theme.of(context).textTheme.bodySmall),
+                          ],
+                        )),
+                        if (selected) const Icon(Icons.check_circle, size: 18),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
+  }
+
+  Future<void> _deleteMarking(AppState state, Marking marking) async {
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('Delete this marking?'),
+        content: Text('Remove the saved marking at ${marking.reference}?'),
+        actions: <Widget>[
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Delete')),
+        ],
+      ),
+    );
+    if (confirmed == true) await state.deleteSavedMarking(marking.id);
   }
 
   Widget _notes(AppState state) {
@@ -1073,6 +1192,7 @@ class _SearchDialogState extends State<_SearchDialog> {
   SearchMatchMode _match = SearchMatchMode.exact;
   SearchScope _scope = const SearchScope.all();
   bool _caseSensitive = false;
+  bool _hasSearched = false;
 
   @override
   void dispose() {
@@ -1166,35 +1286,56 @@ class _SearchDialogState extends State<_SearchDialog> {
                   if (widget.state.searchError != null) {
                     return Center(child: Text(widget.state.searchError!));
                   }
+                  if (_hasSearched && widget.state.searchResultCount == 0) {
+                    return const Center(child: Text('0 results. Try a different search.'));
+                  }
                   if (widget.state.searchResults.isEmpty) {
                     return const Center(child: Text('Enter a search above.'));
                   }
-                  return NotificationListener<ScrollNotification>(
-                    onNotification: (ScrollNotification notice) {
-                      if (notice.metrics.extentAfter < 240) {
-                        widget.state.loadMoreSearchResults();
-                      }
-                      return false;
-                    },
-                    child: ListView.builder(
-                      itemCount: widget.state.searchResults.length +
-                          (widget.state.searchComplete ? 0 : 1),
-                      itemBuilder: (BuildContext context, int index) {
-                        if (index == widget.state.searchResults.length) {
-                          return const Padding(
-                            padding: EdgeInsets.all(20),
-                            child: Center(child: CircularProgressIndicator()),
-                          );
-                        }
-                        final SearchVerse result =
-                            widget.state.searchResults[index];
-                        return ListTile(
-                          title: Text(result.reference),
-                          subtitle: Text(result.text),
-                          onTap: () => widget.onOpen(result),
-                        );
-                      },
-                    ),
+                  return Column(
+                    children: <Widget>[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(18, 4, 18, 8),
+                        child: Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: Text(
+                            '${widget.state.searchResultCount} ${widget.state.searchResultCount == 1 ? 'result' : 'results'}',
+                            style: Theme.of(context).textTheme.labelLarge,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: NotificationListener<ScrollNotification>(
+                          onNotification: (ScrollNotification notice) {
+                            if (notice.metrics.extentAfter < 240) {
+                              widget.state.loadMoreSearchResults();
+                            }
+                            return false;
+                          },
+                          child: ListView.builder(
+                            itemCount: widget.state.searchResults.length +
+                                (widget.state.searchComplete ? 0 : 1),
+                            itemBuilder: (BuildContext context, int index) {
+                              if (index == widget.state.searchResults.length) {
+                                return const Padding(
+                                  padding: EdgeInsets.all(20),
+                                  child: Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                );
+                              }
+                              final SearchVerse result =
+                                  widget.state.searchResults[index];
+                              return ListTile(
+                                title: Text(result.reference),
+                                subtitle: Text(result.text),
+                                onTap: () => widget.onOpen(result),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
                   );
                 },
               ),
@@ -1207,6 +1348,7 @@ class _SearchDialogState extends State<_SearchDialog> {
 
   void _search() {
     if (_query.text.trim().isEmpty) return;
+    setState(() => _hasSearched = true);
     unawaited(widget.state.search(
       _query.text,
       SearchOptions(
@@ -1233,12 +1375,9 @@ class _ReaderDrawer extends StatelessWidget {
             children: <Widget>[
               const Text('Reader', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
               const SizedBox(height: 18),
-              DropdownButtonFormField<String>(
-                initialValue: state.passage.translation,
-                decoration: const InputDecoration(labelText: 'Translation'),
-                items: state.translations
-                    .map((Translation item) => DropdownMenuItem(value: item.abbreviation, child: Text(item.translation)))
-                    .toList(),
+              ReaderTranslationField(
+                value: state.passage.translation,
+                translations: state.translations,
                 onChanged: (String? value) {
                   if (value != null) unawaited(state.loadPassage(Passage(translation: value, book: state.passage.book, chapter: state.passage.chapter)));
                 },
@@ -1377,21 +1516,171 @@ class _ChapterFooter extends StatelessWidget {
   final AppState state;
 
   @override
-  Widget build(BuildContext context) => Padding(
+  Widget build(BuildContext context) {
+    final Translation? translation = state.currentTranslation;
+    return Padding(
         padding: const EdgeInsets.only(top: 28),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             const Divider(),
-            Text(state.currentTranslation?.translation ?? state.current?.translation ?? ''),
-            if ((state.currentTranslation?.distributionLicense ?? '').isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text(state.currentTranslation!.distributionLicense, style: Theme.of(context).textTheme.bodySmall),
-              ),
+            TextButton.icon(
+              style: TextButton.styleFrom(padding: EdgeInsets.zero),
+              onPressed: translation == null ? null : () => _showTranslationDetails(context, translation),
+              icon: const Icon(Icons.menu_book_outlined, size: 18),
+              label: Text(translation?.translation ?? state.current?.translation ?? ''),
+            ),
+            const SizedBox(height: 18),
+            Text('getBible.Life — The words of eternal life', style: Theme.of(context).textTheme.bodySmall),
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 4,
+              children: <Widget>[
+                Text('Powered by ', style: Theme.of(context).textTheme.bodySmall),
+                TextButton(
+                  style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(48, 40)),
+                  onPressed: () => launchUrl(Uri.parse('https://getbible.net')),
+                  child: const Text('GetBible'),
+                ),
+                Text(' • ', style: Theme.of(context).textTheme.bodySmall),
+                TextButton(
+                  style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(48, 40)),
+                  onPressed: () => launchUrl(Uri.parse('https://github.com/getbible/flutter')),
+                  child: const Text('Source'),
+                ),
+              ],
+            ),
           ],
         ),
       );
+  }
+}
+
+Future<void> _showTranslationDetails(
+  BuildContext context,
+  Translation translation,
+) {
+  final List<(String, String)> details = <(String, String)>[
+    ('Language', translation.resolvedLanguage),
+    ('Abbreviation', translation.abbreviation.toUpperCase()),
+    ('Version', translation.distributionVersion),
+    ('Version date', translation.distributionVersionDate),
+    ('Description', translation.description),
+    ('About', translation.distributionAbout),
+    ('License and copyright', translation.distributionLicense),
+    ('Source type', translation.distributionSourceType),
+    ('Source', translation.distributionSource),
+    ('Versification', translation.distributionVersification),
+    ('Catalog subject', translation.distributionLcsh),
+    for (final MapEntry<String, String> item in translation.distributionHistory.entries)
+      ('History — ${item.key}', item.value),
+  ].where(((String, String) item) => item.$2.trim().isNotEmpty).toList();
+  return showDialog<void>(
+    context: context,
+    builder: (BuildContext context) => AlertDialog(
+      title: Text(translation.translation),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 620),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              for (final (String label, String value) in details) ...<Widget>[
+                Text(label, style: Theme.of(context).textTheme.labelLarge),
+                const SizedBox(height: 3),
+                SelectableText(value),
+                const SizedBox(height: 16),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: <Widget>[
+        if (translation.url.trim().isNotEmpty)
+          TextButton.icon(
+            onPressed: () => unawaited(launchUrl(Uri.parse(translation.url))),
+            icon: const Icon(Icons.open_in_new),
+            label: const Text('Translation source'),
+          ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
+}
+
+class _MarkingGroupPicker extends StatefulWidget {
+  const _MarkingGroupPicker({required this.groups});
+
+  final List<MarkingGroup> groups;
+
+  @override
+  State<_MarkingGroupPicker> createState() => _MarkingGroupPickerState();
+}
+
+class _MarkingGroupPickerState extends State<_MarkingGroupPicker> {
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final String query = _query.trim().toLowerCase();
+    final List<MarkingGroup> groups = widget.groups
+        .where((MarkingGroup group) => query.isEmpty || group.name.toLowerCase().contains(query))
+        .toList(growable: false);
+    return AlertDialog(
+      title: const Text('Choose a marking'),
+      content: SizedBox(
+        width: 560,
+        height: (MediaQuery.sizeOf(context).height * 0.65)
+            .clamp(320, 560)
+            .toDouble(),
+        child: Column(
+          children: <Widget>[
+            TextField(
+              autofocus: true,
+              decoration: const InputDecoration(
+                hintText: 'Find a marking group',
+                prefixIcon: Icon(Icons.search),
+              ),
+              onChanged: (String value) => setState(() => _query = value),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: GridView.builder(
+                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: 190,
+                  mainAxisExtent: 58,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                ),
+                itemCount: groups.length,
+                itemBuilder: (BuildContext context, int index) {
+                  final MarkingGroup group = groups[index];
+                  return Material(
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(8),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () => Navigator.of(context).pop(group.id),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: _GroupChoice(group: group),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+      ],
+    );
+  }
 }
 
 class _ErrorState extends StatelessWidget {

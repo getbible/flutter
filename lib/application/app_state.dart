@@ -64,6 +64,8 @@ final class AppState extends ChangeNotifier {
       .where((Translation item) => item.abbreviation == passage.translation)
       .firstOrNull;
 
+  int get searchResultCount => _allSearchResults.length;
+
   MarkingGroup? get activeGroup => groups
       .where((MarkingGroup item) => item.id == preferences.activeMarkingGroupId)
       .firstOrNull;
@@ -279,6 +281,13 @@ final class AppState extends ChangeNotifier {
   Future<void> removeWholeVerseMarking(int verse) async {
     final List<Marking> remove = markings.where((Marking item) => item.verse == verse && item.isWholeVerse).toList();
     await annotations.replaceMarkings(remove, const <Marking>[]);
+    markings = await annotations.getMarkingsForPassage(passage);
+    savedMarkings = await annotations.getMarkings();
+    notifyListeners();
+  }
+
+  Future<void> deleteSavedMarking(String id) async {
+    await annotations.deleteMarking(id);
     markings = await annotations.getMarkingsForPassage(passage);
     savedMarkings = await annotations.getMarkings();
     notifyListeners();
