@@ -273,6 +273,8 @@ final class CachedBibleRepository implements BibleRepository {
   @override
   Future<void> clearScriptureCache() => _database.clearCache();
 
+  Future<JsonMap> getDailyScripture() => _client.getDailyScripture();
+
   Future<(BibleChapter, String)> _downloadConsistentChapter(
     String translation,
     int book,

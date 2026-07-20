@@ -13,6 +13,7 @@ import '../domain/models/passage.dart';
 import '../domain/models/preferences.dart';
 import '../domain/models/search.dart';
 import '../services/search_service.dart';
+import '../services/daily_scripture_service.dart';
 
 export '../domain/models/preferences.dart'
     show AppearanceMode, ReaderLayout, ReadingWidth;
@@ -82,9 +83,53 @@ final class AppState extends ChangeNotifier {
   Future<void> initialize() async {
     preferences = await settings.getPreferences();
     final LastReadingPosition? last = await settings.getLastReadingPosition();
-    if (last != null) passage = last.passage;
     groups = await annotations.getGroups();
-    await loadPassage(passage);
+    if (last != null) {
+      passage = last.passage;
+      await loadPassage(passage);
+    } else {
+      await openDailyScripture();
+    }
+  }
+
+  Future<void> openDailyScripture() async {
+    final DateTime now = DateTime.now();
+    DailyScriptureCache? daily = await settings.getDailyScripture();
+    if (daily == null || !daily.isCurrent(now)) {
+      try {
+        daily = parseDailyScripture(await bibles.getDailyScripture(), now);
+        await settings.saveDailyScripture(daily);
+      } catch (_) {
+        if (daily == null) {
+          await loadPassage(
+            const Passage(translation: 'kjv', book: 49, chapter: 5),
+          );
+          return;
+        }
+      }
+    }
+    if (daily == null) return;
+    final DailyScriptureCache resolvedDaily = daily;
+    final RepositoryResult<List<BibleBook>> bookResult =
+        await bibles.getBooks('kjv');
+    final String dailyBookName = resolvedDaily.bookName;
+    final BibleBook? book = bookResult.data
+        .where((BibleBook item) => bookMatchesSlug(item.name, dailyBookName))
+        .firstOrNull;
+    if (book == null) {
+      await loadPassage(
+        const Passage(translation: 'kjv', book: 49, chapter: 5),
+      );
+      return;
+    }
+    await loadPassage(
+      Passage(
+        translation: 'kjv',
+        book: book.number,
+        chapter: resolvedDaily.chapter,
+        verse: resolvedDaily.verse,
+      ),
+    );
   }
 
   Future<void> loadPassage(Passage next) async {

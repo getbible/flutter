@@ -48,6 +48,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
         onMenu: () => _scaffoldKey.currentState?.openDrawer(),
         onStudy: () => _scaffoldKey.currentState?.openEndDrawer(),
         onSearch: () => _showSearch(context, state),
+        onHome: () => unawaited(state.openDailyScripture()),
       ),
       body: SafeArea(child: _body(context, state)),
     );
@@ -239,12 +240,14 @@ class _ReaderAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.onMenu,
     required this.onStudy,
     required this.onSearch,
+    required this.onHome,
   });
 
   final AppState state;
   final VoidCallback onMenu;
   final VoidCallback onStudy;
   final VoidCallback onSearch;
+  final VoidCallback onHome;
 
   @override
   Size get preferredSize => const Size.fromHeight(62);
@@ -268,9 +271,16 @@ class _ReaderAppBar extends StatelessWidget implements PreferredSizeWidget {
             height: 24,
           ),
           const SizedBox(width: 8),
-          const Text(
-            'getBible.Life',
-            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20),
+          InkWell(
+            onTap: onHome,
+            borderRadius: BorderRadius.circular(6),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 2, vertical: 8),
+              child: Text(
+                'getBible.Life',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20),
+              ),
+            ),
           ),
           if (!compact) ...<Widget>[
             const SizedBox(width: 18),
