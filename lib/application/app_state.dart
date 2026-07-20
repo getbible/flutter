@@ -12,8 +12,8 @@ import '../domain/models/cache.dart';
 import '../domain/models/passage.dart';
 import '../domain/models/preferences.dart';
 import '../domain/models/search.dart';
-import '../services/search_service.dart';
 import '../services/daily_scripture_service.dart';
+import '../services/search_service.dart';
 
 export '../domain/models/preferences.dart'
     show AppearanceMode, ReaderLayout, ReadingWidth;
@@ -108,7 +108,6 @@ final class AppState extends ChangeNotifier {
         }
       }
     }
-    if (daily == null) return;
     final DailyScriptureCache resolvedDaily = daily;
     final RepositoryResult<List<BibleBook>> bookResult =
         await bibles.getBooks('kjv');
