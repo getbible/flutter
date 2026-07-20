@@ -128,8 +128,10 @@ class _ReaderScreenState extends State<ReaderScreen> {
   }
 
   Future<void> _openPassage(Passage passage) async {
+    final AppState state = context.read<AppState>();
     await Navigator.of(context).maybePop();
-    await context.read<AppState>().loadPassage(passage);
+    if (!mounted) return;
+    await state.loadPassage(passage);
     if (!mounted) return;
     await _scrollToVerse(passage.verse);
   }
@@ -139,7 +141,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
     await Future<void>.delayed(const Duration(milliseconds: 80));
     if (!mounted) return;
     final BuildContext? target = _verseKeys[verse]?.currentContext;
-    if (target != null) {
+    if (target != null && target.mounted) {
       await Scrollable.ensureVisible(
         target,
         alignment: 0.2,
