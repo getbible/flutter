@@ -197,16 +197,19 @@ final class CachedBibleRepository implements BibleRepository {
           checkedAt: now,
         );
       }
-      final BibleChapter fresh = await _client.getChapter(
+      final (BibleChapter, String) consistent = await _downloadConsistentChapter(
         abbreviation,
         book,
         chapter,
+        initialSha: sha,
       );
+      final BibleChapter fresh = consistent.$1;
+      final String confirmedSha = consistent.$2;
       final DateTime now = _now();
       await _writeCacheBestEffort(
         key: key,
         kind: 'chapter',
-        sha: sha,
+        sha: confirmedSha,
         payload: fresh.toJson(),
         checkedAt: now,
       );
@@ -268,6 +271,32 @@ final class CachedBibleRepository implements BibleRepository {
 
   @override
   Future<void> clearScriptureCache() => _database.clearCache();
+
+  Future<(BibleChapter, String)> _downloadConsistentChapter(
+    String translation,
+    int book,
+    int chapter, {
+    required String initialSha,
+  }) async {
+    String before = initialSha;
+    for (int attempt = 0; attempt < 2; attempt++) {
+      final BibleChapter payload = await _client.getChapter(
+        translation,
+        book,
+        chapter,
+      );
+      final String after = await _client.getChapterSha(
+        translation,
+        book,
+        chapter,
+      );
+      if (before == after) return (payload, after);
+      before = after;
+    }
+    throw const ApiFormatException(
+      'The Scripture chapter changed repeatedly while it was downloading.',
+    );
+  }
 
   DateTime _now() => _clock().toUtc();
 

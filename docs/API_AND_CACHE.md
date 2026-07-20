@@ -13,4 +13,10 @@ Base URL: `https://api.getbible.net/v2`.
 
 Freshness states are `fresh`, `cachedVerified`, and `cachedUnverified`. A failed network/hash check must not erase a valid cached chapter. Malformed cached JSON is discarded. Storage bookkeeping failure must not hide usable Scripture already fetched or verified.
 
+Chapter activation uses the MCP consistency sequence: read the chapter SHA,
+download and fully parse the chapter, then read the SHA again. If the source
+rotated, retry once from the new SHA. Only a payload bracketed by identical
+hashes is activated. SQLite's single-row upsert is the atomic activation point;
+the previous row remains the last-known-good value on any preceding failure.
+
 API responses must remain dynamically discovered; never hard-code available translations, book names, chapter counts, or verse counts. Timeouts, non-2xx responses, malformed UTF-8/JSON, and empty resources are typed failures.
