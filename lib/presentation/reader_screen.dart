@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../application/app_state.dart';
@@ -9,6 +10,7 @@ import '../domain/models/bible.dart';
 import '../domain/models/cache.dart';
 import '../domain/models/passage.dart';
 import '../domain/models/search.dart';
+import 'boundary_turn_controller.dart';
 
 class ReaderScreen extends StatefulWidget {
   const ReaderScreen({super.key});
@@ -21,8 +23,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final ScrollController _scrollController = ScrollController();
   final Map<int, GlobalKey> _verseKeys = <int, GlobalKey>{};
-  int? _boundaryDirection;
-  DateTime? _boundaryAt;
+  final BoundaryTurnController _boundaryTurns = BoundaryTurnController();
+  bool _boundaryRecordedForGesture = false;
   int? _editingNote;
 
   @override
@@ -77,17 +79,28 @@ class _ReaderScreenState extends State<ReaderScreen> {
                 if (velocity.abs() < 350) return;
                 unawaited(_turn(state, velocity > 0 ? -1 : 1));
               },
-              child: NotificationListener<ScrollNotification>(
-                onNotification: (ScrollNotification notice) =>
-                    _onScrollNotification(notice, state),
-                child: _ReaderBody(
-                  state: state,
-                  controller: _scrollController,
-                  verseKeys: _verseKeys,
-                  editingNote: _editingNote,
-                  onEditNote: (int? verse) =>
-                      setState(() => _editingNote = verse),
-                  onOpenVerseMenu: _showVerseMenu,
+              child: CallbackShortcuts(
+                bindings: <ShortcutActivator, VoidCallback>{
+                  const SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true):
+                      () => unawaited(_turn(state, -1)),
+                  const SingleActivator(LogicalKeyboardKey.arrowRight, alt: true):
+                      () => unawaited(_turn(state, 1)),
+                },
+                child: Focus(
+                  autofocus: true,
+                  child: NotificationListener<ScrollNotification>(
+                    onNotification: (ScrollNotification notice) =>
+                        _onScrollNotification(notice, state),
+                    child: _ReaderBody(
+                      state: state,
+                      controller: _scrollController,
+                      verseKeys: _verseKeys,
+                      editingNote: _editingNote,
+                      onEditNote: (int? verse) =>
+                          setState(() => _editingNote = verse),
+                      onOpenVerseMenu: _showVerseMenu,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -99,19 +112,17 @@ class _ReaderScreenState extends State<ReaderScreen> {
   }
 
   bool _onScrollNotification(ScrollNotification notice, AppState state) {
+    if (notice is ScrollStartNotification) {
+      _boundaryRecordedForGesture = false;
+      return false;
+    }
     if (notice is! OverscrollNotification || notice.overscroll == 0) {
       return false;
     }
+    if (_boundaryRecordedForGesture) return false;
+    _boundaryRecordedForGesture = true;
     final int direction = notice.overscroll > 0 ? 1 : -1;
-    final DateTime now = DateTime.now();
-    final bool repeated = _boundaryDirection == direction &&
-        _boundaryAt != null &&
-        now.difference(_boundaryAt!) <= const Duration(milliseconds: 2200);
-    _boundaryDirection = direction;
-    _boundaryAt = now;
-    if (repeated) {
-      _boundaryDirection = null;
-      _boundaryAt = null;
+    if (_boundaryTurns.register(direction, DateTime.now())) {
       unawaited(_turn(state, direction));
     }
     return false;
