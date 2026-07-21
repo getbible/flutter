@@ -18,6 +18,7 @@ class GetBibleApp extends StatelessWidget {
     final AppState state = context.watch<AppState>();
     return MaterialApp(
       title: 'getBible.live',
+      locale: Locale(state.ui.locale),
       debugShowCheckedModeBanner: false,
       themeMode: switch (state.preferences.appearanceMode) {
         AppearanceMode.system => ThemeMode.system,
@@ -26,7 +27,10 @@ class GetBibleApp extends StatelessWidget {
       },
       theme: _readerTheme(state.preferences.lightPalette, Brightness.light),
       darkTheme: _readerTheme(state.preferences.darkPalette, Brightness.dark),
-      home: const ReaderScreen(),
+      home: Directionality(
+        textDirection: state.isUiRtl ? TextDirection.rtl : TextDirection.ltr,
+        child: const ReaderScreen(),
+      ),
     );
   }
 }

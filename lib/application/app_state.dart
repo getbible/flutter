@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
+import '../core/ui_strings.dart';
+
 import '../data/api/getbible_api_client.dart';
 import '../data/database/local_database.dart';
 import '../data/repositories/cached_bible_repository.dart';
@@ -50,6 +52,7 @@ final class AppState extends ChangeNotifier {
   List<VerseNote> notes = const [];
   List<Marking> savedMarkings = const [];
   List<VerseNote> savedNotes = const [];
+  UiStrings ui = UiStrings.english;
   bool loading = true;
   String? error;
   bool searchLoading = false;
@@ -63,6 +66,8 @@ final class AppState extends ChangeNotifier {
   Translation? get currentTranslation => translations
       .where((Translation item) => item.abbreviation == passage.translation)
       .firstOrNull;
+
+  bool get isUiRtl => currentTranslation?.isRtl ?? false;
 
   int get searchResultCount => _allSearchResults.length;
 
@@ -154,6 +159,7 @@ final class AppState extends ChangeNotifier {
       if (request != _passageRequest) return;
       passage = next;
       current = chapterResult.data;
+      ui = await UiStrings.load(currentTranslation?.lang);
       freshness = chapterResult.freshness;
       markings = await annotations.getMarkingsForPassage(next);
       notes = await annotations.getNotesForPassage(next);
@@ -371,44 +377,44 @@ final class AppState extends ChangeNotifier {
 
   Future<void> setAppearance(AppearanceMode mode) async {
     preferences = preferences.copyWith(appearanceMode: mode);
-    await settings.savePreferences(preferences);
     notifyListeners();
+    await settings.savePreferences(preferences);
   }
 
   Future<void> setLayout(ReaderLayout layout) async {
     preferences = preferences.copyWith(layout: layout);
-    await settings.savePreferences(preferences);
     notifyListeners();
+    await settings.savePreferences(preferences);
   }
 
   Future<void> setTextSize(double size) async {
     preferences = preferences.copyWith(textSize: size);
-    await settings.savePreferences(preferences);
     notifyListeners();
+    await settings.savePreferences(preferences);
   }
 
   Future<void> setLightPalette(String palette) async {
     preferences = preferences.copyWith(lightPalette: palette);
-    await settings.savePreferences(preferences);
     notifyListeners();
+    await settings.savePreferences(preferences);
   }
 
   Future<void> setDarkPalette(String palette) async {
     preferences = preferences.copyWith(darkPalette: palette);
-    await settings.savePreferences(preferences);
     notifyListeners();
+    await settings.savePreferences(preferences);
   }
 
   Future<void> setReaderFont(String font) async {
     preferences = preferences.copyWith(readerFont: font);
-    await settings.savePreferences(preferences);
     notifyListeners();
+    await settings.savePreferences(preferences);
   }
 
   Future<void> setReadingWidth(ReadingWidth width) async {
     preferences = preferences.copyWith(readingWidth: width);
-    await settings.savePreferences(preferences);
     notifyListeners();
+    await settings.savePreferences(preferences);
   }
 
   Future<void> close() => database.close();
