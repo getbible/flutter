@@ -1539,13 +1539,13 @@ class _ChapterFooter extends StatelessWidget {
                 Text('Powered by ', style: Theme.of(context).textTheme.bodySmall),
                 TextButton(
                   style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(48, 40)),
-                  onPressed: () => launchUrl(Uri.parse('https://getbible.net')),
+                  onPressed: () => launchUrl(Uri.parse('https://getbible.life')),
                   child: const Text('GetBible'),
                 ),
                 Text(' • ', style: Theme.of(context).textTheme.bodySmall),
                 TextButton(
                   style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(48, 40)),
-                  onPressed: () => launchUrl(Uri.parse('https://github.com/getbible/flutter')),
+                  onPressed: () => launchUrl(Uri.parse('https://api.getbible.net/v2/translations.json')),
                   child: const Text('Source'),
                 ),
               ],
